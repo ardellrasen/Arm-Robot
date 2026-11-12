@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Arm Digital Twin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/build/three.module.min.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body data-state="IDLE" data-mode="SIMULASI">
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 27h20M10 27v-4h12v4M16 23V15l7-6M23 9l3 2M23 9l1-3"/>
+          <circle cx="16" cy="15" r="2"/>
+        </svg>
+        <h1>Lengan Robot ITB Insight</h1>
+      </div>
+      <dl class="sys">
+        <div><dt>Mode</dt><dd id="modeChip">Simulasi</dd></div>
+        <div class="link" id="linkChip"><dt>Robot</dt><dd><span class="dot" aria-hidden="true"></span><span id="linkText">—</span></dd></div>
+        <div><dt>Kamera</dt><dd><span id="fpsVal">--</span> fps</dd></div>
+        <div><dt>Data</dt><dd><span id="syncVal">--</span> Hz</dd></div>
+        <div class="clock"><dd id="clock">--:--</dd></div>
+      </dl>
+    </header>
+
+    <main class="main">
+      <section class="twin" id="twinPanel" aria-label="Model 3D robot">
+        <div class="twin-canvas" id="twinCanvas"></div>
+
+        <p class="twin-sub" id="twinSub">Model mengikuti robot virtual</p>
+
+        <div class="tags" id="tags" aria-hidden="true">
+          <div class="tag" id="tagBase">Base <span>0.0°</span></div>
+          <div class="tag" id="tagArm">Lengan <span>0.0°</span></div>
+          <div class="tag" id="tagGrip">Capit <span>terbuka</span></div>
+        </div>
+
+        <div class="views" id="views" role="group" aria-label="Sudut pandang">
+          <button data-view="iso" class="active">Iso</button>
+          <button data-view="back">Operator</button>
+          <button data-view="top">Atas</button>
+          <button data-view="side">Samping</button>
+        </div>
+
+        <div class="tip-readout" title="Posisi ujung gripper (cm)">
+          <span>x <b id="tipX">0.0</b></span><span>y <b id="tipY">0.0</b></span><span>z <b id="tipZ">0.0</b></span><em>cm</em>
+        </div>
+
+        <div class="cta" id="cta">
+          <svg viewBox="0 0 48 48" class="cta-hand" aria-hidden="true">
+            <path d="M17 25V10a3 3 0 0 1 6 0v12m0-1V7a3 3 0 0 1 6 0v14m0-2v-8a3 3 0 0 1 6 0v15m-18 0v-4a3 3 0 0 0-6 0v7c0 9 6 15 13 15h3c8 0 11-6 11-12v-6"/>
+          </svg>
+          <p class="cta-title">Angkat tanganmu</p>
+          <p class="cta-sub">Robot akan mengikuti gerakanmu</p>
+        </div>
+
+        <div class="estop-banner" id="estopOverlay" role="alert">
+          <b>Robot dihentikan</b>
+          <span>Robot diam di posisinya. Tekan <kbd>Space</kbd> atau <b>Lanjutkan</b> untuk menjalankan lagi.</span>
+        </div>
+
+        <div class="disconnect" id="disconnect">
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="disconnectText">Menghubungkan ke aplikasi…</p>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="block cam">
+          <header class="block-head"><h2>Kamera</h2><span class="meta" id="srcName">—</span></header>
+          <div class="cam-view" id="camView">
+            <img id="camImg" alt="Tampilan kamera" src="stream.mjpg">
+            <canvas id="camCanvas"></canvas>
+            <span class="cam-flag" id="handFlag">Mencari tangan</span>
+            <div class="calib" id="calibBox"></div>
+          </div>
+          <div class="pinch">
+            <span class="k">Cubit</span>
+            <div class="pinch-bar" id="pinchBar">
+              <div class="pinch-fill" id="pinchFill"></div>
+              <div class="pinch-th close" id="thClose" title="Di kiri garis ini capit menutup"></div>
+              <div class="pinch-th open" id="thOpen" title="Di kanan garis ini capit membuka"></div>
+            </div>
+            <span class="v" id="pinchVal">—</span>
+          </div>
+        </section>
+
+        <section class="block joints">
+          <header class="block-head"><h2>Sendi</h2></header>
+          <table>
+            <thead><tr><th></th><th class="num">Posisi</th><th>Rentang</th><th class="num">Target / servo</th></tr></thead>
+            <tbody>
+              <tr id="jBase">
+                <th scope="row">Base</th>
+                <td class="num big"></td>
+                <td class="bar-cell"><div class="range"><i class="zero"></i><i class="fill"></i><i class="tgt"></i></div><div class="lims"><span></span><span></span></div></td>
+                <td class="num small"><span class="tgtv"></span><span class="srv"></span></td>
+              </tr>
+              <tr id="jArm">
+                <th scope="row">Lengan</th>
+                <td class="num big"></td>
+                <td class="bar-cell"><div class="range"><i class="zero"></i><i class="fill"></i><i class="tgt"></i></div><div class="lims"><span></span><span></span></div></td>
+                <td class="num small"><span class="tgtv"></span><span class="srv"></span></td>
+              </tr>
+              <tr id="jGrip">
+                <th scope="row">Capit</th>
+                <td class="num big gstate">Terbuka</td>
+                <td class="bar-cell"><div class="range"><i class="fill grip"></i></div><div class="lims"><span>buka</span><span>tutup</span></div></td>
+                <td class="num small"><span class="tgtv"></span><span class="srv"></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="block chart">
+          <header class="block-head">
+            <h2>Riwayat 10 detik</h2>
+            <span class="legend">
+              <span class="lg"><i class="sw yaw"></i>Base</span>
+              <span class="lg"><i class="sw pitch"></i>Lengan</span>
+              <span class="lg" title="Arsiran hijau = capit tertutup"><i class="sw grip"></i>Capit</span>
+            </span>
+          </header>
+          <div class="chart-wrap" id="chartWrap">
+            <canvas id="chart"></canvas>
+            <div class="tooltip" id="chartTip"></div>
+          </div>
+        </section>
+
+        <section class="block log">
+          <header class="block-head"><h2>Log</h2><span class="meta" id="fwState">—</span></header>
+          <ol id="log"></ol>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="bottombar">
+      <div class="state-block">
+        <span class="state-icon" aria-hidden="true"></span>
+        <div>
+          <p class="state-big" id="stateBig">Siaga</p>
+          <p class="state-msg" id="stateMsg">Angkat tanganmu di depan kamera untuk mulai</p>
+        </div>
+      </div>
+      <ul class="howto">
+        <li><svg viewBox="0 0 32 32"><path d="M4 16h24M4 16l6-6M4 16l6 6M28 16l-6-6M28 16l-6 6"/></svg><span>Geser kiri–kanan<small>memutar base</small></span></li>
+        <li><svg viewBox="0 0 32 32"><path d="M16 4v24M16 4l-6 6M16 4l6 6M16 28l-6-6M16 28l6-6"/></svg><span>Naik–turun<small>mengangkat lengan</small></span></li>
+        <li><svg viewBox="0 0 32 32"><path d="M9 7c5 2 7 5 7 9M23 7c-5 2-7 5-7 9M16 16v11"/></svg><span>Cubit jempol + telunjuk<small>menjepit benda</small></span></li>
+      </ul>
+      <div class="keys" aria-label="Pintasan keyboard">
+        <span><kbd>V</kbd> sudut pandang</span><span><kbd>C</kbd> kalibrasi</span>
+        <span><kbd>F</kbd> layar penuh</span><span class="sim-only"><kbd>U</kbd> cabut kabel</span>
+      </div>
+      <button class="estop" id="estopBtn">
+        <span class="estop-plate" aria-hidden="true"><span class="estop-cap"></span></span>
+        <span class="estop-text"><b id="estopLbl">Hentikan robot</b><small id="estopHint">E-STOP, tombol Space</small></span>
+      </button>
+    </footer>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

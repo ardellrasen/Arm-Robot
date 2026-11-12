@@ -1,0 +1,58 @@
+# =====================================================================
+#  Konfigurasi Robot Arm ITB Insight
+#  SEMUA parameter yang bisa dikalibrasi ada di sini (nilai = PLACEHOLDER).
+# =====================================================================
+
+serial:
+  port: "COM5"            # Windows: COMx, Linux: /dev/ttyUSB0, macOS: /dev/cu.usbserial-xxx
+  baud: 115200
+  mock: true              # true = MODE SIMULASI (tanpa ESP32), false = MODE ASLI (serial)
+  speed_deg_per_tick: 3   # batas kecepatan di firmware (derajat per tick 20 ms), dikirim saat connect
+  keepalive_ms: 200       # kirim ulang perintah A minimal tiap N ms (watchdog firmware = 1 s)
+
+camera:
+  index: 0
+  width: 1280
+  height: 720
+  mirror: true
+
+geometry:
+  L: 10.0                 # cm, sumbu servo lengan -> titik tengah gripper
+  H0: 6.0                 # cm, tinggi sumbu servo lengan dari meja
+
+tracking:
+  min_detection_confidence: 0.7
+  min_tracking_confidence: 0.6
+
+filter:
+  type: one_euro          # one_euro | ema
+  min_cutoff: 1.0
+  beta: 0.02
+  ema_alpha: 0.3
+
+mapping:
+  x_range: [0.15, 0.85]
+  yaw_range: [60, -60]          # derajat (tangan kiri layar -> base putar ke kiri)
+  y_mode: height                # height | angle
+  y_range: [0.85, 0.15]         # bawah frame -> atas frame
+  pitch_range: [-30, 60]        # derajat, dipakai untuk clamp
+  pinch_close: 0.35             # relatif terhadap ukuran tangan
+  pinch_open: 0.50
+
+servos:                         # servo_deg = offset + sign * joint_deg
+  base:   {offset: 90, sign: 1, min: 20, max: 160}
+  lengan: {offset: 90, sign: 1, min: 30, max: 160}
+  grip:   {open: 20, close: 80}
+
+ui:
+  backend: web                  # web = digital twin 3D di browser | opencv = jendela lama
+  fullscreen: false             # true untuk pameran
+  idle_timeout_s: 3
+  web_host: "127.0.0.1"         # 0.0.0.0 kalau UI mau dibuka dari layar/PC lain di jaringan
+  web_port: 8765
+  open_browser: true            # buka otomatis jendela aplikasi (Edge/Chrome)
+
+recording:                      # hanya dipakai kalau M7 dikerjakan
+  enabled: false
+  max_seconds: 30
+  lead_in_seconds: 1.0

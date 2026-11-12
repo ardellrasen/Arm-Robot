@@ -1,0 +1,7 @@
+# Python 3.10-3.12 (MediaPipe belum mendukung 3.13+). Di laptop ini: py -3.11
+mediapipe==0.10.21
+opencv-contrib-python==4.11.0.86   # dibawa mediapipe; jangan install opencv-python juga (bentrok)
+numpy==1.26.4
+pyserial==3.5
+PyYAML==6.0.2
+pytest==8.3.3
